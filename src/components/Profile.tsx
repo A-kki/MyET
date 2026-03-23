@@ -4,7 +4,11 @@ import { cn } from '../lib/utils';
 import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 
-export function Profile() {
+interface ProfileProps {
+  onLogout?: () => void;
+}
+
+export function Profile({ onLogout }: ProfileProps) {
   const { language, setLanguage, t } = useLanguage();
   const [selectedInterests, setSelectedInterests] = useState(["NSE/BSE", "Indian Fintech", "RBI Policy"]);
 
@@ -98,7 +102,10 @@ export function Profile() {
         <section className="space-y-4 pt-4">
           <SettingsLink icon={Wallet} label={t('profile.billing')} />
           <SettingsLink icon={Lock} label={t('profile.privacy')} />
-          <button className="w-full flex items-center justify-between p-4 bg-surface-container-low hover:bg-surface-container-high transition-all text-left">
+          <button 
+            onClick={onLogout}
+            className="w-full flex items-center justify-between p-4 bg-surface-container-low hover:bg-surface-container-high transition-all text-left"
+          >
             <div className="flex items-center gap-4 text-error">
               <LogOut className="w-5 h-5" />
               <span className="font-body">{t('profile.logout')}</span>

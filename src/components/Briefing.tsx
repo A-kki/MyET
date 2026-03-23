@@ -1,7 +1,7 @@
-import { Bell, Search, ArrowUp, Volume2, Sparkles } from 'lucide-react';
+import { Bell, Search, ArrowUp, Volume2, Sparkles, RefreshCw, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { MOCK_STORIES, Story } from '../constants';
 import { motion } from 'motion/react';
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { geminiService } from '../services/geminiService';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -11,7 +11,47 @@ interface BriefingProps {
 
 export function Briefing({ onStoryClick }: BriefingProps) {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Record<string, 'up' | 'down'>>({});
   const { language, t } = useLanguage();
+  
+  // Infinite scroll state
+  const [stories, setStories] = useState<Story[]>(MOCK_STORIES);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  const loadMoreStories = useCallback(() => {
+    if (isLoadingMore) return;
+    setIsLoadingMore(true);
+    
+    // Simulate network request
+    setTimeout(() => {
+      const nextStories = MOCK_STORIES.map(story => ({
+        ...story,
+        id: `${story.id}-page-${page + 1}`
+      }));
+      setStories(prev => [...prev, ...nextStories]);
+      setPage(prev => prev + 1);
+      setIsLoadingMore(false);
+    }, 1200);
+  }, [isLoadingMore, page]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMoreStories();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [loadMoreStories]);
 
   const handleListen = async (e: React.MouseEvent, story: Story) => {
     e.stopPropagation();
@@ -35,6 +75,20 @@ export function Briefing({ onStoryClick }: BriefingProps) {
       console.error('TTS error:', error);
       setSpeakingId(null);
     }
+  };
+
+  const handleFeedback = (e: React.MouseEvent, storyId: string, type: 'up' | 'down') => {
+    e.stopPropagation();
+    setFeedback(prev => {
+      const isSame = prev[storyId] === type;
+      const newFeedback = { ...prev };
+      if (isSame) {
+        delete newFeedback[storyId]; // Toggle off
+      } else {
+        newFeedback[storyId] = type;
+      }
+      return newFeedback;
+    });
   };
 
   return (
@@ -65,7 +119,7 @@ export function Briefing({ onStoryClick }: BriefingProps) {
       </header>
 
       <main className="pt-24 px-6 max-w-4xl mx-auto space-y-12">
-        {MOCK_STORIES.map((story, idx) => {
+        {stories.map((story, idx) => {
           const title = language === 'hi' ? (story.titleHi || story.title) : story.title;
           const category = language === 'hi' ? (story.categoryHi || story.category) : story.category;
           const updateInfo = language === 'hi' ? (story.updateInfoHi || story.updateInfo) : story.updateInfo;
@@ -127,6 +181,26 @@ export function Briefing({ onStoryClick }: BriefingProps) {
                     <h4 className="font-label text-[10px] uppercase tracking-widest text-primary mb-3">{t('story.matters')}</h4>
                     <p className="text-on-surface-variant text-sm italic">{mattersToYou}</p>
                   </div>
+
+                  <div className="flex items-center gap-4 pt-2">
+                    <span className="font-label text-xs text-on-surface-variant uppercase tracking-widest">
+                      {t('briefing.feedback.question')}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => handleFeedback(e, story.id, 'up')}
+                        className={`p-2 rounded-full transition-colors ${feedback[story.id] === 'up' ? 'bg-primary/20 text-primary' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'}`}
+                      >
+                        <ThumbsUp className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => handleFeedback(e, story.id, 'down')}
+                        className={`p-2 rounded-full transition-colors ${feedback[story.id] === 'down' ? 'bg-red-500/20 text-red-400' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'}`}
+                      >
+                        <ThumbsDown className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div className="md:col-span-2 space-y-6">
                   <div className="aspect-video bg-surface-container-highest overflow-hidden rounded-sm">
@@ -149,6 +223,16 @@ export function Briefing({ onStoryClick }: BriefingProps) {
             </motion.article>
           );
         })}
+        
+        {/* Infinite Scroll Sentinel */}
+        <div ref={observerTarget} className="h-20 flex items-center justify-center w-full pb-12">
+          {isLoadingMore && (
+            <div className="flex items-center gap-3 text-primary">
+              <RefreshCw className="w-5 h-5 animate-spin" />
+              <span className="font-label text-xs uppercase tracking-widest">Loading more stories...</span>
+            </div>
+          )}
+        </div>
       </main>
 
       <div className="fixed bottom-24 left-0 w-full px-6 z-40 flex justify-center pointer-events-none">
