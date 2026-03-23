@@ -3,6 +3,7 @@ import { Mic, Send, Sparkles, Bell, TrendingDown, TrendingUp, StopCircle, Volume
 import { geminiService } from '../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
+import { cn } from '../lib/utils';
 
 interface Message {
   role: 'user' | 'ai';

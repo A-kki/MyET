@@ -93,6 +93,18 @@ export function StoryDetail({ story, onBack }: StoryDetailProps) {
               <FileText className="w-4 h-4" />
               {isSummarizing ? 'Summarizing...' : 'AI Summary'}
             </button>
+            <button 
+              onClick={handleReadAloud}
+              disabled={isSpeaking}
+              className={`flex items-center gap-2 px-4 py-2 rounded-sm text-xs font-label uppercase tracking-widest transition-all ${
+                isSpeaking 
+                  ? 'bg-primary text-on-primary animate-pulse' 
+                  : 'bg-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary'
+              }`}
+            >
+              <Volume2 className="w-4 h-4" />
+              {isSpeaking ? 'Reading...' : 'Read Aloud'}
+            </button>
           </div>
 
           {summary && (
