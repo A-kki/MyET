@@ -1,0 +1,238 @@
+import { ArrowLeft, Bell, Bookmark, Share2, Expand, ChevronDown, Volume2, FileText } from 'lucide-react';
+import { Story } from '../constants';
+import { motion } from 'motion/react';
+import { geminiService } from '../services/geminiService';
+import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+
+interface StoryDetailProps {
+  story: Story;
+  onBack: () => void;
+}
+
+export function StoryDetail({ story, onBack }: StoryDetailProps) {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+
+  const handleReadAloud = async () => {
+    if (isSpeaking) return;
+    setIsSpeaking(true);
+    try {
+      const textToRead = `${story.title}. ${story.content}`;
+      const audioUrl = await geminiService.textToSpeech(textToRead);
+      if (audioUrl) {
+        const audio = new Audio(audioUrl);
+        audio.onended = () => setIsSpeaking(false);
+        audio.play();
+      } else {
+        setIsSpeaking(false);
+      }
+    } catch (error) {
+      console.error('TTS error:', error);
+      setIsSpeaking(false);
+    }
+  };
+
+  const handleSummarize = async () => {
+    if (summary || isSummarizing) return;
+    setIsSummarizing(true);
+    try {
+      const result = await geminiService.analyzeComplex(story.content || story.title);
+      setSummary(result);
+    } catch (error) {
+      console.error('Summarization error:', error);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  return (
+    <div className="pb-32">
+      <header className="bg-surface/90 backdrop-blur-md fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 border-b border-outline-variant/10">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="text-on-surface-variant hover:text-primary transition-colors">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <span className="font-headline italic text-2xl tracking-tight text-primary">MyET</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={handleReadAloud}
+            className={`p-2 rounded-full transition-colors ${isSpeaking ? 'text-primary animate-pulse' : 'text-on-surface-variant hover:text-primary'}`}
+          >
+            <Volume2 className="w-6 h-6" />
+          </button>
+          <Bell className="w-6 h-6 text-on-surface-variant" />
+          <div className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/20">
+            <img 
+              className="w-full h-full object-cover" 
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXjJWC_5MowYu8JLlrMvpK45po26o8-e9UAJBZNgLfUHzj_d5TuPIK678IsicK8RKlnxRqiCBlybn9DC-o2U41zQFYnKPd4OCbDpI1aZI-wrao-aDyETQHu3EerN-dZIKX8gWZCtIEmqvt-Lwmc3eXKsKoq3A9J14nDp6eayMeE6-GZnlfV-tKS2oZiEF6V6vajgYM0aYNy2tZIcBTNvIkdgt3rxHGb8xpOncd7QuuwaHqNIgeJ20rUHFJmzaqsdwurUxEU4saOA" 
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        </div>
+      </header>
+
+      <main className="pt-24 max-w-4xl mx-auto px-6 space-y-12">
+        <article className="space-y-6">
+          <div className="space-y-2">
+            <span className="font-label text-primary text-[10px] uppercase tracking-[0.2em]">
+              {story.category} • {story.readTime}
+            </span>
+            <h1 className="font-headline text-5xl md:text-6xl text-on-surface font-semibold leading-tight tracking-tight">
+              {story.title}
+            </h1>
+          </div>
+
+          <div className="flex gap-4">
+            <button 
+              onClick={handleSummarize}
+              className="flex items-center gap-2 bg-surface-container-high px-4 py-2 rounded-sm text-xs font-label uppercase tracking-widest text-primary hover:bg-primary hover:text-on-primary transition-all"
+            >
+              <FileText className="w-4 h-4" />
+              {isSummarizing ? 'Summarizing...' : 'AI Summary'}
+            </button>
+          </div>
+
+          {summary && (
+            <motion.section 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="bg-primary/5 p-8 border-l-4 border-primary rounded-sm prose prose-invert max-w-none"
+            >
+              <h2 className="font-label text-[10px] text-primary uppercase tracking-widest mb-4">AI Deep Summary</h2>
+              <ReactMarkdown>{summary}</ReactMarkdown>
+            </motion.section>
+          )}
+
+          <div className="relative py-4 group">
+            <div className="flex overflow-x-auto gap-8 no-scrollbar scroll-smooth pb-4">
+              <div className="flex-none w-48 border-l-2 border-primary/20 pl-4 space-y-1">
+                <p className="font-label text-[10px] text-on-surface-variant">OCT 12, 09:00</p>
+                <p className="text-sm font-medium">Initial Announcement</p>
+              </div>
+              <div className="flex-none w-48 border-l-2 border-primary pl-4 space-y-1">
+                <p className="font-label text-[10px] text-primary">OCT 14, 14:30</p>
+                <p className="text-sm font-medium">Market Reaction Peak</p>
+              </div>
+              <div className="flex-none w-48 border-l-2 border-primary/20 pl-4 space-y-1 opacity-50">
+                <p className="font-label text-[10px] text-on-surface-variant">OCT 18, 11:00</p>
+                <p className="text-sm font-medium">Regulatory Hearing</p>
+              </div>
+            </div>
+          </div>
+
+          <section className="bg-surface-container-low p-8 border-l-4 border-primary/40 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <Sparkles className="w-16 h-16 text-primary" />
+            </div>
+            <h2 className="font-label text-[10px] text-primary uppercase tracking-widest mb-4">AI Executive Summary</h2>
+            <p className="text-xl font-headline italic leading-relaxed text-on-surface-variant">
+              "The integration of autonomous agentic workflows into cross-border settlements has triggered a 14% shift in liquidity from traditional hubs to algorithmic corridors. We are seeing a structural break in how debt is priced in real-time."
+            </p>
+          </section>
+
+          <section className="flex flex-wrap gap-2 items-center">
+            <span className="font-label text-[10px] text-on-surface-variant uppercase mr-2">Mentioned</span>
+            {['JPM +1.2%', 'Gary Gensler', 'NVIDIA +0.4%', 'Ethereum Foundation'].map(item => (
+              <div key={item} className="bg-surface-container-highest px-3 py-1 flex items-center gap-2 group cursor-pointer hover:bg-surface-bright transition-colors">
+                <span className="font-label text-xs">{item.split(' ')[0]}</span>
+                {item.includes('+') && <span className="text-[10px] text-primary">{item.split(' ')[1]}</span>}
+              </div>
+            ))}
+          </section>
+
+          <div className="space-y-8 text-on-surface/90 leading-7 text-lg max-w-2xl">
+            {story.content?.split('\n\n').map((p, i) => (
+              <p key={i}>{p}</p>
+            ))}
+
+            <div className="group cursor-pointer py-6 border-y border-outline-variant/20 hover:bg-surface-container-low px-4 -mx-4 transition-all">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <AnalyticsIcon className="w-6 h-6 text-primary" />
+                  <span className="font-medium">Deep Dive: The Algorithmic Corridor Mechanism</span>
+                </div>
+                <ChevronDown className="w-5 h-5 group-hover:translate-y-1 transition-transform" />
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <section className="space-y-6">
+          <h3 className="font-headline text-3xl font-medium">Impact on you</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-surface-container p-6 space-y-4">
+              <div className="flex items-center gap-3 text-primary">
+                <Wallet className="w-5 h-5" />
+                <h4 className="font-label text-xs uppercase tracking-widest font-bold">Portfolio Risk</h4>
+              </div>
+              <p className="text-on-surface-variant leading-relaxed">Exposure to T-Bills may see increased volatility as AI-driven trading platforms pivot to automated repo markets.</p>
+            </div>
+            <div className="bg-surface-container p-6 space-y-4">
+              <div className="flex items-center gap-3 text-tertiary-dim">
+                <Shield className="w-5 h-5" />
+                <h4 className="font-label text-xs uppercase tracking-widest font-bold">Strategy Shift</h4>
+              </div>
+              <p className="text-on-surface-variant leading-relaxed">Consider shifting 4% of cash reserves to inflation-protected assets to hedge against the rapid velocity shifts predicted for Q4.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-xl z-50">
+        <div className="glass-panel border border-primary/20 rounded-full flex items-center p-2 shadow-2xl">
+          <div className="flex-1 flex items-center px-4 gap-3">
+            <Sparkles className="w-5 h-5 text-primary" />
+            <input 
+              className="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-on-surface-variant" 
+              placeholder="Ask MyET about this story..." 
+              type="text"
+            />
+          </div>
+          <button className="bg-primary text-on-primary h-10 px-6 rounded-full font-label text-xs font-bold hover:bg-primary-dim transition-all active:scale-95">
+            ASK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Sparkles(props: any) {
+  return (
+    <svg 
+      {...props}
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+    </svg>
+  );
+}
+
+function AnalyticsIcon(props: any) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+  );
+}
+
+function Wallet(props: any) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+  );
+}
+
+function Shield(props: any) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><circle cx="12" cy="11" r="3"/><path d="M7 18a5.2 5.2 0 0 1 10 0"/></svg>
+  );
+}

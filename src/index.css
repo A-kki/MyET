@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Newsreader", serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Space Grotesk", monospace;
+
+  --color-primary: #fbbc00;
+  --color-primary-dim: #eaaf00;
+  --color-on-primary: #533c00;
+  --color-surface: #0e0e0e;
+  --color-surface-container: #191a1a;
+  --color-surface-container-low: #131313;
+  --color-surface-container-high: #1f2020;
+  --color-surface-container-highest: #252626;
+  --color-on-surface: #e7e5e4;
+  --color-on-surface-variant: #acabaa;
+  --color-outline-variant: #484848;
+  --color-error: #ed7f64;
+}
+
+@layer base {
+  @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Inter:wght@100..900&family=Space+Grotesk:wght@300..700&display=swap');
+
+  body {
+    @apply bg-surface text-on-surface font-body antialiased;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-surface-container-highest/70 backdrop-blur-xl;
+  }
+}

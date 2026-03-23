@@ -1,0 +1,5 @@
+{
+  "name": "MyET",
+  "description": "The Intelligent Ledger: AI-driven financial intelligence and curated briefings.",
+  "requestFramePermissions": ["microphone"]
+}

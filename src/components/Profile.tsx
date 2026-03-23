@@ -1,0 +1,121 @@
+import { Bell, Wallet, Lock, LogOut, ChevronRight, Check } from 'lucide-react';
+import { INTERESTS } from '../constants';
+import { cn } from '../lib/utils';
+
+export function Profile() {
+  const selectedInterests = ["Macroeconomics", "Geopolitics", "Emerging Tech", "Central Banking"];
+
+  return (
+    <div className="pb-32">
+      <header className="bg-surface text-primary flex justify-between items-center px-6 h-16 w-full fixed top-0 z-50 border-b border-outline-variant/10">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden border border-outline-variant/20">
+            <img 
+              className="w-full h-full object-cover" 
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7Dy1ZOoG3qrGYaWceTkSldxv0x6ibiWt4DvI3CFL_F1lULhSBoXx1ZOXUtftSJloX6-AdPKEPC097pOB24EK_G93py1LFs8tF1KMZZYRD-GgDHwft9kGSYO9n0folte6YCT6eClFCMqi7ZarN8kCttvsLiyd2jiRC-OaPo3ZyrivXjEFYlGNdp2fW5vpif2Vy0m2Xc86vl21B2o6hDKImrwNRvUZKzxLOcXXGA_OVyurHtplylCp5eQoeWXRAlyPGh8V9BxWnng" 
+              referrerPolicy="no-referrer"
+            />
+          </div>
+          <span className="font-headline italic text-2xl tracking-tight text-primary">MyET</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <Bell className="w-5 h-5 text-on-surface-variant" />
+        </div>
+      </header>
+
+      <main className="max-w-screen-md mx-auto px-6 pt-24 space-y-12">
+        <section className="space-y-2">
+          <h1 className="font-headline text-5xl font-extrabold tracking-tight text-on-surface">Your MyET</h1>
+          <p className="font-body text-on-surface-variant max-w-prose text-lg">Curating the intelligence that drives your perspective.</p>
+        </section>
+
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-1">
+          <StatCard label="Daily Briefs" value="12" />
+          <StatCard label="Insights Read" value="482" />
+          <StatCard label="Network Rank" value="Top 5%" />
+        </section>
+
+        <section className="space-y-6">
+          <div className="flex items-baseline justify-between border-b border-outline-variant/10 pb-2">
+            <h2 className="font-label text-xs uppercase tracking-widest text-primary">Interests</h2>
+            <span className="font-label text-[10px] text-on-surface-variant">12 Selected</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {INTERESTS.map(interest => (
+              <button 
+                key={interest}
+                className={cn(
+                  "px-4 py-2 text-sm font-medium border transition-all",
+                  selectedInterests.includes(interest) 
+                    ? "bg-primary-container text-on-primary-container border-primary/20" 
+                    : "bg-surface-container-highest text-on-surface border-transparent hover:border-outline-variant"
+                )}
+              >
+                {interest}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-6">
+          <div className="flex items-baseline justify-between border-b border-outline-variant/10 pb-2">
+            <h2 className="font-label text-xs uppercase tracking-widest text-primary">Intelligence Language</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <LanguageCard label="English (Global)" sub="Primary Business Intel" active />
+            <LanguageCard label="Hindi (हिन्दी)" sub="Regional Insights" />
+          </div>
+        </section>
+
+        <section className="space-y-4 pt-4">
+          <SettingsLink icon={Wallet} label="Subscription & Billing" />
+          <SettingsLink icon={Lock} label="Privacy & AI Data Controls" />
+          <button className="w-full flex items-center justify-between p-4 bg-surface-container-low hover:bg-surface-container-high transition-all text-left">
+            <div className="flex items-center gap-4 text-error">
+              <LogOut className="w-5 h-5" />
+              <span className="font-body">Terminate Session</span>
+            </div>
+          </button>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string, value: string }) {
+  return (
+    <div className="bg-surface-container-low p-6 space-y-1">
+      <span className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">{label}</span>
+      <p className="font-headline text-3xl font-medium">{value}</p>
+    </div>
+  );
+}
+
+function LanguageCard({ label, sub, active }: { label: string, sub: string, active?: boolean }) {
+  return (
+    <label className="flex items-center justify-between p-4 bg-surface-container-low cursor-pointer group hover:bg-surface-container-high transition-colors">
+      <div className="flex flex-col">
+        <span className="font-body font-semibold">{label}</span>
+        <span className="font-label text-[10px] text-on-surface-variant uppercase tracking-tight">{sub}</span>
+      </div>
+      <div className={cn(
+        "w-5 h-5 border-2 flex items-center justify-center",
+        active ? "border-primary bg-primary" : "border-outline-variant group-hover:border-on-surface-variant"
+      )}>
+        {active && <Check className="w-4 h-4 text-on-primary" />}
+      </div>
+    </label>
+  );
+}
+
+function SettingsLink({ icon: Icon, label }: { icon: any, label: string }) {
+  return (
+    <button className="w-full flex items-center justify-between p-4 bg-surface-container-low hover:bg-surface-container-high transition-all text-left">
+      <div className="flex items-center gap-4">
+        <Icon className="w-5 h-5 text-on-surface-variant" />
+        <span className="font-body">{label}</span>
+      </div>
+      <ChevronRight className="w-5 h-5 text-on-surface-variant" />
+    </button>
+  );
+}
