@@ -1,7 +1,12 @@
-import { Search, Bell, Bookmark, Share2, Compass, Sparkles } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Search, Bell, Bookmark, Share2, Compass, Sparkles, RefreshCw } from 'lucide-react';
+import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
+import { useState, useRef, useEffect } from 'react';
 
 export function Explore() {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ container: containerRef });
+  
   const slides = [
     {
       id: 1,
@@ -19,8 +24,55 @@ export function Explore() {
     }
   ];
 
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => setIsRefreshing(false), 1500);
+  };
+
+  // Simple pull detection logic
+  const [pullDistance, setPullDistance] = useState(0);
+  const startY = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (containerRef.current?.scrollTop === 0) {
+      startY.current = e.touches[0].pageY;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (containerRef.current?.scrollTop === 0) {
+      const currentY = e.touches[0].pageY;
+      const diff = currentY - startY.current;
+      if (diff > 0) {
+        setPullDistance(Math.min(diff / 2, 80));
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (pullDistance > 60) {
+      handleRefresh();
+    }
+    setPullDistance(0);
+  };
+
   return (
-    <div className="h-screen overflow-hidden bg-black">
+    <div 
+      className="h-screen overflow-hidden bg-black relative"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull to Refresh Indicator */}
+      <motion.div 
+        style={{ y: pullDistance - 40 }}
+        className="absolute top-0 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center"
+      >
+        <div className={`p-2 rounded-full bg-primary/20 backdrop-blur-md border border-primary/30 transition-transform ${isRefreshing ? 'animate-spin' : ''}`}>
+          <RefreshCw className="w-5 h-5 text-primary" />
+        </div>
+      </motion.div>
+
       <header className="fixed top-0 left-0 w-full z-50 px-6 h-20 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent">
         <div className="flex items-center gap-4">
           <h1 className="font-headline italic text-2xl tracking-tight text-primary">MyET</h1>
@@ -38,10 +90,16 @@ export function Explore() {
         </div>
       </header>
 
-      <main className="h-full snap-y snap-mandatory overflow-y-scroll no-scrollbar">
+      <main 
+        ref={containerRef}
+        className="h-full snap-y snap-mandatory overflow-y-scroll no-scrollbar"
+      >
         {slides.map((slide) => (
-          <section key={slide.id} className="h-screen w-full snap-start relative">
-            <img 
+          <section key={slide.id} className="h-screen w-full snap-start relative overflow-hidden">
+            <motion.img 
+              initial={{ scale: 1.1, opacity: 0 }}
+              whileInView={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
               alt={slide.title} 
               className="absolute inset-0 w-full h-full object-cover" 
               src={slide.image} 
@@ -49,8 +107,9 @@ export function Explore() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end px-6 pb-28">
               <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
                 className="max-w-[80%]"
               >
                 <span className="font-label text-[10px] uppercase tracking-[0.2em] text-primary bg-black/40 backdrop-blur-md px-2 py-1 mb-3 inline-block">
@@ -70,6 +129,22 @@ export function Explore() {
           </section>
         ))}
       </main>
+
+      <AnimatePresence>
+        {isRefreshing && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm z-[70] flex items-center justify-center"
+          >
+            <div className="flex flex-col items-center gap-4">
+              <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+              <span className="font-label text-xs uppercase tracking-widest text-primary">Refreshing Feed</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

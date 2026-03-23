@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Bookmark, Share2, Expand, ChevronDown, Volume2, FileText } from 'lucide-react';
+import { ArrowLeft, Bell, Bookmark, Share2, Expand, ChevronDown, Volume2, FileText, Sparkles, AudioLines } from 'lucide-react';
 import { Story } from '../constants';
 import { motion } from 'motion/react';
 import { geminiService } from '../services/geminiService';
@@ -85,6 +85,28 @@ export function StoryDetail({ story, onBack }: StoryDetailProps) {
             </h1>
           </div>
 
+          <div className="bg-primary/5 border border-primary/20 p-6 rounded-sm flex items-center justify-between group hover:bg-primary/10 transition-all cursor-pointer" onClick={handleReadAloud}>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform relative">
+                <AudioLines className="w-6 h-6" />
+                <Sparkles className="w-3 h-3 absolute top-2 right-2 text-primary-dim animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-label text-xs uppercase tracking-widest font-bold text-primary">Convert text to speech</h3>
+                <p className="text-sm text-on-surface-variant">Listen to a curated intelligence briefing of this story.</p>
+              </div>
+            </div>
+            <button 
+              className={`flex items-center gap-2 px-6 py-2 rounded-full text-xs font-label uppercase tracking-widest transition-all ${
+                isSpeaking 
+                  ? 'bg-primary text-on-primary animate-pulse' 
+                  : 'bg-primary text-on-primary hover:bg-primary-dim'
+              }`}
+            >
+              {isSpeaking ? 'Playing...' : 'Listen Now'}
+            </button>
+          </div>
+
           <div className="flex gap-4">
             <button 
               onClick={handleSummarize}
@@ -102,8 +124,11 @@ export function StoryDetail({ story, onBack }: StoryDetailProps) {
                   : 'bg-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary'
               }`}
             >
-              <Volume2 className="w-4 h-4" />
-              {isSpeaking ? 'Reading...' : 'Read Aloud'}
+              <div className="relative">
+                <Volume2 className="w-4 h-4" />
+                <Sparkles className="w-2 h-2 absolute -top-1 -right-1 text-primary-dim" />
+              </div>
+              {isSpeaking ? 'Reading...' : 'TTS Brief'}
             </button>
           </div>
 
@@ -209,25 +234,6 @@ export function StoryDetail({ story, onBack }: StoryDetailProps) {
         </div>
       </div>
     </div>
-  );
-}
-
-function Sparkles(props: any) {
-  return (
-    <svg 
-      {...props}
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    >
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-    </svg>
   );
 }
 

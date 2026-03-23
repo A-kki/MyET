@@ -69,9 +69,23 @@ export const geminiService = {
             mimeType: mimeType,
           },
         },
-        { text: "Transcribe this audio exactly as spoken." },
+        { text: "Transcribe this audio exactly as spoken. Output ONLY the transcribed text, no preamble, no quotes, and no explanations. If the audio is silent or unintelligible, return an empty string." },
       ],
     });
-    return response.text;
+    return response.text?.trim() || "";
+  },
+
+  connectLive(callbacks: any) {
+    return ai.live.connect({
+      model: "gemini-2.5-flash-native-audio-preview-12-2025",
+      callbacks,
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: "Zephyr" } },
+        },
+        systemInstruction: "You are MyET, an advanced financial intelligence assistant. You are in a real-time voice conversation. Be concise, professional, and helpful.",
+      },
+    });
   }
 };

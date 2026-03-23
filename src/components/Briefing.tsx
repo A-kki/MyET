@@ -1,12 +1,36 @@
-import { Bell, Search, ArrowUp } from 'lucide-react';
+import { Bell, Search, ArrowUp, Volume2, Sparkles } from 'lucide-react';
 import { MOCK_STORIES, Story } from '../constants';
 import { motion } from 'motion/react';
+import { useState } from 'react';
+import { geminiService } from '../services/geminiService';
 
 interface BriefingProps {
   onStoryClick: (story: Story) => void;
 }
 
 export function Briefing({ onStoryClick }: BriefingProps) {
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+
+  const handleListen = async (e: React.MouseEvent, story: Story) => {
+    e.stopPropagation();
+    if (speakingId === story.id) return;
+    setSpeakingId(story.id);
+    try {
+      const textToRead = `${story.title}. ${story.insights.join('. ')}. ${story.mattersToYou}`;
+      const audioUrl = await geminiService.textToSpeech(textToRead);
+      if (audioUrl) {
+        const audio = new Audio(audioUrl);
+        audio.onended = () => setSpeakingId(null);
+        audio.play();
+      } else {
+        setSpeakingId(null);
+      }
+    } catch (error) {
+      console.error('TTS error:', error);
+      setSpeakingId(null);
+    }
+  };
+
   return (
     <div className="pb-32">
       <header className="fixed top-0 left-0 w-full z-50 bg-surface/90 backdrop-blur-md border-b border-outline-variant/10">
@@ -47,7 +71,23 @@ export function Briefing({ onStoryClick }: BriefingProps) {
                 <span className="font-label text-xs text-primary uppercase tracking-[0.2em]">
                   {story.updateInfo || story.category}
                 </span>
-                <span className="font-label text-xs text-on-surface-variant">{story.readTime}</span>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={(e) => handleListen(e, story)}
+                    className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-label uppercase tracking-widest transition-all ${
+                      speakingId === story.id 
+                        ? 'bg-primary text-on-primary animate-pulse' 
+                        : 'bg-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary'
+                    }`}
+                  >
+                    <div className="relative">
+                      <Volume2 className="w-3 h-3" />
+                      <Sparkles className="w-1.5 h-1.5 absolute -top-1 -right-1 text-primary-dim" />
+                    </div>
+                    {speakingId === story.id ? 'Listening...' : 'Listen'}
+                  </button>
+                  <span className="font-label text-xs text-on-surface-variant">{story.readTime}</span>
+                </div>
               </div>
               <h2 className="font-headline text-3xl md:text-4xl text-on-surface leading-tight group-hover:text-primary transition-colors">
                 {story.title}
@@ -111,25 +151,5 @@ export function Briefing({ onStoryClick }: BriefingProps) {
         </div>
       </div>
     </div>
-  );
-}
-
-function Sparkles(props: any) {
-  return (
-    <svg 
-      {...props}
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    >
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-      <path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>
-    </svg>
   );
 }

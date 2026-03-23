@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { Mic, Send, Sparkles, Bell, TrendingDown, TrendingUp, StopCircle, Volume2 } from 'lucide-react';
+import { Mic, Send, Sparkles, Bell, TrendingDown, TrendingUp, StopCircle, Volume2, Radio } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
+import { float32ToInt16, base64ToUint8Array, uint8ArrayToBase64 } from '../lib/audioUtils';
 
 interface Message {
   role: 'user' | 'ai';
   text: string;
   timestamp: string;
   audioUrl?: string;
+  isLive?: boolean;
 }
 
 export function AskMyET() {
@@ -24,9 +26,28 @@ export function AskMyET() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  // Live API Refs
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const liveSessionRef = useRef<any>(null);
+  const audioInputProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const audioOutputQueueRef = useRef<Float32Array[]>([]);
+  const isPlayingRef = useRef(false);
+  const nextPlayTimeRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      stopLiveSession();
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -129,6 +150,127 @@ export function AskMyET() {
     }
   };
 
+  const startLiveSession = async () => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext({ sampleRate: 16000 });
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const source = audioContextRef.current.createMediaStreamSource(stream);
+      const processor = audioContextRef.current.createScriptProcessor(4096, 1, 1);
+      audioInputProcessorRef.current = processor;
+
+      const sessionPromise = geminiService.connectLive({
+        onopen: () => {
+          console.log('Live session opened');
+          setIsLiveMode(true);
+          setMessages(prev => [...prev, {
+            role: 'ai',
+            text: 'Real-time intelligence ledger connected. How can I assist you today?',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isLive: true
+          }]);
+        },
+        onmessage: async (message: any) => {
+          if (message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data) {
+            const base64Audio = message.serverContent.modelTurn.parts[0].inlineData.data;
+            const uint8 = base64ToUint8Array(base64Audio);
+            const int16 = new Int16Array(uint8.buffer);
+            const float32 = new Float32Array(int16.length);
+            for (let i = 0; i < int16.length; i++) {
+              float32[i] = int16[i] / 0x7fff;
+            }
+            audioOutputQueueRef.current.push(float32);
+            playNextChunk();
+          }
+
+          if (message.serverContent?.modelTurn?.parts?.[0]?.text) {
+            const text = message.serverContent.modelTurn.parts[0].text;
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last && last.role === 'ai' && last.isLive) {
+                return [...prev.slice(0, -1), { ...last, text: last.text + text }];
+              }
+              return prev;
+            });
+          }
+
+          if (message.serverContent?.interrupted) {
+            audioOutputQueueRef.current = [];
+            isPlayingRef.current = false;
+          }
+        },
+        onclose: () => {
+          console.log('Live session closed');
+          setIsLiveMode(false);
+          stopLiveSession();
+        },
+        onerror: (err: any) => {
+          console.error('Live session error:', err);
+          setIsLiveMode(false);
+          stopLiveSession();
+        }
+      });
+
+      liveSessionRef.current = sessionPromise;
+
+      processor.onaudioprocess = (e) => {
+        const inputData = e.inputBuffer.getChannelData(0);
+        const int16Data = float32ToInt16(inputData);
+        const base64Data = uint8ArrayToBase64(new Uint8Array(int16Data.buffer));
+        
+        sessionPromise.then(session => {
+          session.sendRealtimeInput({
+            audio: { data: base64Data, mimeType: 'audio/pcm;rate=16000' }
+          });
+        });
+      };
+
+      source.connect(processor);
+      processor.connect(audioContextRef.current.destination);
+
+    } catch (error) {
+      console.error('Error starting live session:', error);
+    }
+  };
+
+  const playNextChunk = () => {
+    if (!audioContextRef.current || audioOutputQueueRef.current.length === 0 || isPlayingRef.current) return;
+
+    isPlayingRef.current = true;
+    const chunk = audioOutputQueueRef.current.shift()!;
+    const buffer = audioContextRef.current.createBuffer(1, chunk.length, 16000);
+    buffer.getChannelData(0).set(chunk);
+
+    const source = audioContextRef.current.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContextRef.current.destination);
+
+    const startTime = Math.max(audioContextRef.current.currentTime, nextPlayTimeRef.current);
+    source.start(startTime);
+    nextPlayTimeRef.current = startTime + buffer.duration;
+
+    source.onended = () => {
+      isPlayingRef.current = false;
+      playNextChunk();
+    };
+  };
+
+  const stopLiveSession = () => {
+    if (liveSessionRef.current) {
+      liveSessionRef.current.then((s: any) => s.close());
+      liveSessionRef.current = null;
+    }
+    if (audioInputProcessorRef.current) {
+      audioInputProcessorRef.current.disconnect();
+      audioInputProcessorRef.current = null;
+    }
+    setIsLiveMode(false);
+    audioOutputQueueRef.current = [];
+    isPlayingRef.current = false;
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <nav className="bg-surface-container-low flex justify-between items-center px-6 h-16 w-full fixed top-0 z-40 border-b border-outline-variant/10">
@@ -155,6 +297,12 @@ export function AskMyET() {
         </div>
 
         <div className="space-y-12">
+          {isLiveMode && (
+            <div className="flex items-center gap-2 text-primary animate-pulse mb-4">
+              <Radio className="w-4 h-4" />
+              <span className="font-label text-[10px] uppercase tracking-widest">Live Intelligence Session Active</span>
+            </div>
+          )}
           {messages.map((msg, idx) => (
             <div key={idx} className={msg.role === 'user' ? "flex flex-col items-end w-full" : "flex flex-col gap-8"}>
               {msg.role === 'user' ? (
@@ -247,10 +395,38 @@ export function AskMyET() {
             />
             <div className="flex items-center gap-3 ml-4">
               <button 
+                onClick={isLiveMode ? stopLiveSession : startLiveSession}
+                className={cn(
+                  "p-2 rounded-full transition-all",
+                  isLiveMode ? "text-primary animate-pulse scale-110" : "text-on-surface-variant hover:text-primary"
+                )}
+                title="Live Voice Conversation"
+              >
+                <Radio className="w-6 h-6" />
+              </button>
+              {isRecording && (
+                <div className="flex gap-1 items-center px-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <motion.div
+                      key={i}
+                      animate={{
+                        height: [8, 16, 8],
+                      }}
+                      transition={{
+                        duration: 0.5,
+                        repeat: Infinity,
+                        delay: i * 0.1,
+                      }}
+                      className="w-0.5 bg-error rounded-full"
+                    />
+                  ))}
+                </div>
+              )}
+              <button 
                 onClick={isRecording ? stopRecording : startRecording}
                 className={cn(
                   "p-2 rounded-full transition-all",
-                  isRecording ? "text-error animate-pulse scale-110" : "text-on-surface-variant hover:text-primary"
+                  isRecording ? "text-error scale-110" : "text-on-surface-variant hover:text-primary"
                 )}
               >
                 {isRecording ? <StopCircle className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
